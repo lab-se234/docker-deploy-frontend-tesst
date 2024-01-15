@@ -35,11 +35,28 @@ jobs:
           push: true
           tags: dto80/234-deploylab-frontend:latest
       -
-        name: prepare the docker-compose run
-        run: |
-              mkdir 234-deploylab-frontend
-              cp docker-compose.yml 234-deploylab-frontend/docker-compose.yml
-              cd 234-deploylab-frontend
-              docker-compose -H ${{ secrets.HOST_SERVER }} down
-              docker-compose -H ${{ secrets.HOST_SERVER }} pull
-              docker-compose -H ${{ secrets.HOST_SERVER }} up -d
+        name: copy file via ssh password
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{secrets.HOST_SERVER}}
+          username: ${{ secrets.HOST_USER_NAME }}
+          key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "docker-compose.yml"
+          target: "/home/ubuntu/frontend"
+      -
+        name:   docker compose
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{secrets.HOST_SERVER}}
+          username: ${{ secrets.HOST_USER_NAME }}
+          key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/ubuntu/frontend
+            echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+            mv docker-compose.yml docker-compose.yml
+            docker compose down
+            docker compose pull
+            docker compose up -d
+            rm -rf /home/ubuntu/frontend
